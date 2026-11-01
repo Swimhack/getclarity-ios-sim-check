@@ -23,7 +23,15 @@ def dismiss():
 def relaunch(): d.refresh(); time.sleep(6)
 d.get(B+'/app/'); time.sleep(8); web()
 J=lambda c: d.execute_script('return '+c)
-AJ=lambda c: d.execute_async_script('const cb=arguments[arguments.length-1];Promise.resolve('+c+').then(v=>cb(v),e=>cb("ERR "+e))')
+def AJ(c,t=20):
+    try:
+        d.execute_script('window.__r=undefined;try{Promise.resolve('+c+').then(v=>window.__r=String(v),e=>window.__r="ERR "+e)}catch(e){window.__r="ERR "+e}')
+        for i in range(t*2):
+            v=d.execute_script('return window.__r')
+            if v is not None: return v
+            time.sleep(.5)
+        return 'timeout'
+    except Exception as e: return 'ERR '+repr(e)[:150]
 R['manifest']=AJ("fetch('/app/manifest.webmanifest').then(r=>r.json()).then(m=>m.display+' '+m.start_url+' icons='+m.icons.length)")
 R['apple_meta']=J("[...document.querySelectorAll('meta[name^=apple],link[rel=apple-touch-icon]')].map(e=>(e.name||e.rel)+'='+(e.content||e.href)).join(' | ')")
 R['sw_ready']=AJ("navigator.serviceWorker.ready.then(r=>'scope='+r.scope+' active='+!!r.active)")

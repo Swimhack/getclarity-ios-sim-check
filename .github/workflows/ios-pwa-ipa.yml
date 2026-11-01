@@ -19,9 +19,9 @@ jobs:
         timeout-minutes: 25
         run: |
           npm i -g appium >/dev/null 2>&1 && appium driver install xcuitest > out/appium_install.log 2>&1
-          pip3 install --break-system-packages Appium-Python-Client > /dev/null 2>&1 || pip3 install Appium-Python-Client >/dev/null
+          python3 -m venv /tmp/v && /tmp/v/bin/pip install -q Appium-Python-Client
           (appium --log out/appium.log &) ; sleep 10
-          python3 scripts/pwa_safari.py 2>&1 | tee out/pwa_interact.log
+          /tmp/v/bin/python scripts/pwa_safari.py 2>&1 | tee out/pwa_interact.log
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: pwa-results, path: out }

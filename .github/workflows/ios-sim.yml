@@ -34,3 +34,36 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ios-sim-results, path: out }
+  native:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Capacitor iOS app
+        working-directory: native
+        run: |
+          mkdir -p ../out
+          npm ci
+          npx cap sync ios 2>&1 | tee ../out/cap_sync.log
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > ../../../out/xcodebuild.log 2>&1 || (tail -80 ../../../out/xcodebuild.log; exit 1)
+          tail -5 ../../../out/xcodebuild.log
+      - name: Boot, install, launch
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys,re;d=json.load(sys.stdin)['devices'];c=[(k,x) for k,v in d.items() if 'iOS' in k for x in v if re.match(r'iPhone \d+( Pro)?$',x['name'])];c.sort(key=lambda t:(tuple(int(n) for n in re.findall(r'\d+',t[0])),t[1]['name']));k,x=c[-1];print(x['udid']);open('out/device.txt','w').write(k+' '+x['name']+'\n')")
+          cat out/device.txt; echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot $UDID; xcrun simctl bootstatus $UDID -b
+          xcrun simctl install $UDID native/ios/App/build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl launch $UDID com.stricklandai.getclarity; sleep 15
+          xcrun simctl io $UDID screenshot out/native_launch.png
+      - name: Appium interaction (native webview)
+        continue-on-error: true
+        env: { NATIVE: "1", BASE: "capacitor://localhost" }
+        run: |
+          npm i -g appium >/dev/null 2>&1 && appium driver install xcuitest > out/appium_install.log 2>&1
+          pip3 install --break-system-packages Appium-Python-Client > /dev/null 2>&1 || pip3 install Appium-Python-Client >/dev/null
+          (appium --log out/appium.log &) ; sleep 10
+          python3 scripts/interact.py 2>&1 | tee out/interact.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: ios-native-results, path: out }

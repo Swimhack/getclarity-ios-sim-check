@@ -1,0 +1,50 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Get the app · Get Clarity</title><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#F4F1EA">
+<link rel="manifest" href="/app/manifest.webmanifest"><link rel="icon" href="/app/favicon.ico"><link rel="apple-touch-icon" href="/app/icons/apple-touch-icon.png">
+<style>
+@font-face{font-family:DMS;src:url("/app/assets/node_modules/@expo-google-fonts/dm-sans/400Regular/DMSans_400Regular.74f9bb7405caec741a24db735b2c5733.ttf")}
+@font-face{font-family:DMSB;src:url("/app/assets/node_modules/@expo-google-fonts/dm-sans/700Bold/DMSans_700Bold.7a6c1a2c6196d4d0e617b57adb997b3b.ttf")}
+@font-face{font-family:ISerif;src:url("/app/assets/node_modules/@expo-google-fonts/instrument-serif/400Regular/InstrumentSerif_400Regular.1e3bf8f4e9f996285924f99ebc80e546.ttf")}
+*{box-sizing:border-box}body{margin:0;background:#F4F1EA;color:#111827;font-family:DMS,-apple-system,system-ui,sans-serif;line-height:1.5}
+main{max-width:560px;margin:0 auto;padding:40px 20px calc(40px + env(safe-area-inset-bottom))}
+.logo{width:72px;height:72px;border-radius:18px;box-shadow:0 6px 20px rgba(17,24,39,.15)}
+h1{font-family:ISerif,Georgia,serif;font-weight:400;font-size:40px;line-height:1.1;margin:20px 0 8px}
+.lead{color:#5b6472;margin:0 0 28px}
+.card{background:#fffdf8;border:1px solid #dddcd5;border-radius:20px;padding:20px;margin:0 0 16px}
+.card.hl{border-color:#274690;box-shadow:0 0 0 2px rgba(39,70,144,.12)}
+h2{font-family:DMSB,system-ui,sans-serif;font-size:18px;margin:0 0 6px}
+p{margin:0 0 12px}.muted{color:#5b6472;font-size:14px}
+.btn{display:inline-block;background:#274690;color:#fff;text-decoration:none;border:0;font:inherit;font-family:DMSB,system-ui,sans-serif;font-size:15px;padding:12px 20px;border-radius:999px;cursor:pointer;margin:4px 8px 4px 0}
+.btn.alt{background:transparent;color:#274690;border:1.5px solid #274690}
+ol{margin:8px 0 0;padding-left:22px}li{margin:6px 0}
+.note{background:#fff7e6;border-radius:12px;padding:10px 12px;font-size:14px;color:#6b4e16;margin:8px 0 0}
+.back{display:inline-block;margin-top:12px;color:#274690}
+[hidden]{display:none!important}
+.wagh{display:flex;justify-content:center;padding:0 0 22px;margin:0 0 24px;border-bottom:1px solid #dddcd5}.wagh img{height:32px;width:auto}.logo{border:1px solid #dddcd5}
+</style><script src="/app/get-app.js"></script></head><body><main>
+<header class="wagh"><a href="https://wayneadamgreer.com/" target="_blank" rel="noopener"><img src="/app/wag-logo.png" alt="Wayne Adam Greer" width="163" height="32"></a></header>
+<img class="logo" src="/app/icons/icon-192.png" alt="Get Clarity">
+<h1>Get the app</h1>
+<p class="lead">Take Get Clarity with you — no app store needed.</p>
+<div id="standalone" class="card" hidden><h2>You're already using the app</h2><p class="muted">Get Clarity is installed on this device.</p><a class="btn" href="/app/">Open Get Clarity</a></div>
+<section id="android" class="card">
+  <h2>Android</h2>
+  <p class="muted">Download and install the Android app directly.</p>
+  <a class="btn" id="apk" href="/app/get-clarity.apk" download>Download for Android (APK)</a>
+  <button class="btn alt" data-gc-pwa hidden onclick="gcInstallPWA()">Install web app instead</button>
+  <p class="note">After downloading, open the file. If Android asks, tap <b>Settings</b> and turn on <b>Allow from this source</b> for your browser, then go back and tap <b>Install</b>.</p>
+</section>
+<section id="ios" class="card">
+  <h2>iPhone &amp; iPad</h2>
+  <p class="muted">Add Get Clarity to your Home Screen — it opens full-screen like an app.</p>
+  <p id="notsafari" class="note" hidden>Open this page in <b>Safari</b> to add it to your Home Screen. Tap the menu and choose “Open in Safari”, or copy the link: <b>wayneadamgreer-com.stricklandai.com/app/download</b></p>
+  <ol><li>Tap the <b>Share</b> button <span aria-hidden="true">(□↑)</span> in Safari's toolbar.</li><li>Scroll down and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. Get Clarity will appear on your Home Screen.</li></ol>
+</section>
+<a class="back" href="/app/">← Back to Get Clarity</a>
+</main><script>
+(function(){var e=window.gcEnv||{},a=document.getElementById('android'),i=document.getElementById('ios');
+var sa=(matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true||!!window.Capacitor;
+if(sa){a.hidden=true;i.hidden=true;document.getElementById('standalone').hidden=false;return;}
+if(e.isIOS){a.parentNode.insertBefore(i,a);i.classList.add('hl');if(!e.isSafari)document.getElementById('notsafari').hidden=false;}
+else if(e.isAndroid){a.classList.add('hl');}})();
+</script></body></html>

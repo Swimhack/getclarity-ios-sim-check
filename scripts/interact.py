@@ -2,7 +2,11 @@ import os, time, json, traceback
 from appium import webdriver
 from appium.options.ios import XCUITestOptions
 B=os.environ['BASE']; U=os.environ['UDID']; R={}
-o=XCUITestOptions(); o.udid=U; o.browser_name='Safari'; o.platform_name='iOS'
+NATIVE=os.environ.get('NATIVE')=='1'
+o=XCUITestOptions(); o.udid=U; o.platform_name='iOS'
+if NATIVE:
+    o.bundle_id='com.stricklandai.getclarity'; o.set_capability('appium:noReset',True)
+else: o.browser_name='Safari'
 o.set_capability('appium:wdaLaunchTimeout',600000); o.set_capability('appium:newCommandTimeout',600)
 d=webdriver.Remote('http://127.0.0.1:4723',options=o)
 def shot(n): d.get_screenshot_as_file(f'out/int_{n}.png')
@@ -15,7 +19,18 @@ def step(name,fn):
     print(name,R[name]); 
     try: shot(name)
     except: pass
-d.set_page_load_timeout(60)
+def ctx():
+    for i in range(30):
+        w=[c for c in d.contexts if c.startswith('WEBVIEW')]
+        if w: d.switch_to.context(w[-1]); return
+        time.sleep(2)
+    raise SystemExit('no webview context: %s'%d.contexts)
+if NATIVE:
+    time.sleep(10); ctx(); B=d.execute_script('return location.origin'); print('origin',B)
+    _get=lambda u: d.execute_script('location.href=arguments[0]',u)
+    d.get=_get; d.refresh=lambda: d.execute_script('location.reload()')
+    d.get_screenshot_as_file=lambda f:(d.switch_to.context('NATIVE_APP'),webdriver.Remote.get_screenshot_as_file(d,f),ctx())
+else: d.set_page_load_timeout(60)
 d.get(B+'/app/'); time.sleep(8)
 step('render', lambda: 'pass' if len(body())>40 else 'FAIL: empty body')
 step('contact_absent', lambda: 'pass' if 'contact' not in body().lower() else 'FAIL: contact text present')
@@ -55,5 +70,11 @@ def delete():
     return 'pass' if MARK not in body() else 'FAIL: marker still present'
 step('journal_delete',delete)
 step('sw_registered', lambda: str(d.execute_async_script("const cb=arguments[0];if(!navigator.serviceWorker)return cb('no SW api');navigator.serviceWorker.getRegistrations().then(r=>cb('registrations='+r.length))")))
-R['offline']='not tested (no reliable simulator network toggle)'
+if NATIVE:
+    R['offline']='bundled: origin=%s, remote resources=%s'%(B,d.execute_script("return performance.getEntriesByType('resource').map(r=>r.name).filter(n=>n.startsWith('http')).slice(0,10)"))
+    def relaunch():
+        d.switch_to.context('NATIVE_APP'); d.terminate_app(o.bundle_id); time.sleep(2); d.activate_app(o.bundle_id); time.sleep(8); ctx()
+        return 'relaunch ok'
+    step('relaunch',relaunch)
+else: R['offline']='not tested (no reliable simulator network toggle)'
 json.dump(R,open('out/results.json','w'),indent=1); print(json.dumps(R,indent=1)); d.quit()

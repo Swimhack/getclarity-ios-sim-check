@@ -16,12 +16,19 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - run: mkdir -p out && curl -fsSL -o app.apk https://wayneadamgreer-com.stricklandai.com/app/get-clarity.apk && ls -l app.apk
+      - name: Test build - enable WebView debugging (both variants)
+        run: |
+          mkdir -p q && cd q && unzip -q ../app.apk assets/capacitor.config.json && python3 -c "import json;p='assets/capacitor.config.json';c=json.load(open(p));c.setdefault('android',{})['webContentsDebuggingEnabled']=True;json.dump(c,open(p,'w'))" && zip -q ../app.apk assets/capacitor.config.json
       - name: Patch APK root index (fixed variant)
         if: matrix.variant == 'fixed'
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           mkdir p && cd p && unzip -q ../app.apk assets/public/app/index.html assets/public/index.html && python3 ../scripts/fix_root.py assets/public
-          zip -q ../app.apk assets/public/index.html && cd .. && zip -q -d app.apk 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.MF' || true
+          zip -q ../app.apk assets/public/index.html
+      - name: Re-sign
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          zip -q -d app.apk 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.MF' || true
           keytool -genkeypair -keystore dbg.jks -storepass android -keypass android -alias d -keyalg RSA -dname CN=d -validity 30 >/dev/null 2>&1
           $BT/zipalign -f 4 app.apk a.apk && $BT/apksigner sign --ks dbg.jks --ks-pass pass:android --out app.apk a.apk && echo signed
       - uses: reactivecircus/android-emulator-runner@v2
@@ -31,7 +38,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: (adb logcat -v time > out/${{ matrix.variant }}_logcat.txt &) ; python3 scripts/android_check.py || true ; grep -iE 'Capacitor|chromium|Console' out/${{ matrix.variant }}_logcat.txt | tail -300 > out/${{ matrix.variant }}_logcat_filtered.txt || true
+          script: (adb logcat -v time > out/${{ matrix.variant }}_logcat.txt &) ; pip3 install -q websocket-client; python3 scripts/android_cdp.py || true ; grep -iE 'Capacitor|chromium|Console' out/${{ matrix.variant }}_logcat.txt | tail -300 > out/${{ matrix.variant }}_logcat_filtered.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: "android-${{ matrix.variant }}", path: out }

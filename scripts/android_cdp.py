@@ -33,11 +33,15 @@ def _js(code):
 def relaunch():
     sh(f'am force-stop {PKG}'); launch(); connect()
 def offline(on):
-    s='disable' if on else 'enable'; sh(f'svc wifi {s}'); sh(f'svc data {s}'); time.sleep(3)
+    # app-only network cut (svc wifi/data disable knocks adb offline on this emulator)
+    uid=re.search(r'userId=(\d+)',sh(f'dumpsys package {PKG}')).group(1); a='-I' if on else '-D'
+    for t in ['iptables','ip6tables']: sp.run(f'adb shell su 0 {t} {a} OUTPUT -m owner --uid-owner {uid} -j REJECT',shell=True)
+    time.sleep(2); R['offline_probe_'+('on' if on else 'off')]=js("fetch('https://wayneadamgreer.com/',{mode:'no-cors',cache:'no-store'}).then(()=> 'network reachable').catch(e=>'network blocked: '+e)")
 def dismiss():
     f=sh('dumpsys window | grep mCurrentFocus')
     if PKG+'/' not in f or 'Print' in f: sh('input keyevent 4'); time.sleep(2)
     if PKG not in sh('dumpsys window | grep mCurrentFocus'): launch(); connect()
+sp.run('adb root',shell=True); time.sleep(3); sp.run('adb wait-for-device',shell=True)
 sh('pm uninstall '+PKG); print(sp.run('adb install app.apk',shell=True,capture_output=True,text=True).stdout)
 R['android']=sh('getprop ro.build.version.release').strip()
 launch(); shot('launch')

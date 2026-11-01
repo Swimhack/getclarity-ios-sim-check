@@ -4,10 +4,11 @@ from appium import webdriver
 from appium.options.ios import XCUITestOptions
 U=os.environ['UDID']; B='https://wayneadamgreer-com.stricklandai.com'; R={}; V='pwa'
 o=XCUITestOptions(); o.udid=U; o.platform_name='iOS'; o.browser_name='Safari'
-for k,v in {'wdaLaunchTimeout':600000,'newCommandTimeout':900,'safariInitialUrl':B+'/app/','webviewConnectTimeout':90000,'safariLogAllCommunication':False}.items(): o.set_capability('appium:'+k,v)
+for k,v in {'wdaLaunchTimeout':600000,'newCommandTimeout':900,'safariInitialUrl':B+'/app/','webviewConnectTimeout':90000,'simulatorStartupTimeout':300000,'safariLogAllCommunication':False}.items(): o.set_capability('appium:'+k,v)
 for i in range(3):
     try: d=webdriver.Remote('http://127.0.0.1:4723',options=o); break
-    except Exception as e: print('session retry',repr(e)[:150]); time.sleep(15); d.set_page_load_timeout(60)
+    except Exception as e: print('session retry',repr(e)[:150]); time.sleep(15)
+d.set_page_load_timeout(60)
 def shot(n):
     c=d.current_context; d.switch_to.context('NATIVE_APP'); d.get_screenshot_as_file(f'out/{V}_{n}.png'); d.switch_to.context(c)
 def web():

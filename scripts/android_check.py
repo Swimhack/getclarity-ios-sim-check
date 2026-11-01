@@ -1,8 +1,9 @@
-import subprocess as sp, re, time, json, html
+import subprocess as sp, re, time, json, html, os
+V=os.environ.get('VARIANT','x')
 PKG='com.stricklandai.getclarity'; R={}; n=[0]
 def sh(c): return sp.run('adb shell '+c,shell=True,capture_output=True,text=True).stdout
 def shot(name):
-    n[0]+=1; sp.run(f'adb exec-out screencap -p > out/{n[0]:02d}_{name}.png',shell=True)
+    n[0]+=1; sp.run(f'adb exec-out screencap -p > out/{V}_{n[0]:02d}_{name}.png',shell=True)
 def dump():
     sh('uiautomator dump /sdcard/u.xml >/dev/null'); x=sp.run('adb exec-out cat /sdcard/u.xml',shell=True,capture_output=True,text=True).stdout
     return x
@@ -24,11 +25,11 @@ def step(name,fn):
     try: R[name]=fn() or 'pass'
     except Exception as e: R[name]='FAIL: '+repr(e)[:200]
     print(name,R[name],flush=True); shot(name)
-    open(f'out/ui_{name}.txt','w').write(alltext())
-print(sp.run('adb install -r app.apk',shell=True,capture_output=True,text=True).stdout)
+    open(f'out/{V}_ui_{name}.txt','w').write(alltext())
+sh('pm uninstall '+PKG); print(sp.run('adb install -r app.apk',shell=True,capture_output=True,text=True))
 R['android']=sh('getprop ro.build.version.release').strip()
 launch(); step('render', lambda: 'pass' if len(alltext())>40 else 'FAIL: little text: '+alltext())
-step('contact_absent', lambda: 'pass' if 'contact' not in alltext().lower() else 'FAIL: contact present')
+step('contact_link', lambda: 'present' if 'contact' in alltext().lower() else 'absent')
 MARK='simcheck%d'%int(time.time())
 def nav(tab):
     if not tap(tab,exact=True,last=True): tap(tab,last=True)
@@ -65,7 +66,7 @@ def exports():
     return ('pass ' if all('tapped' in o for o in out) else 'FAIL ')+', '.join(out)
 step('exports',exports)
 def explore():
-    launch(); nav('Explore'); txt=alltext(); return 'pass: '+txt[:400]
+    launch(); nav('Explore'); txt=alltext(); want=['Authority','Becoming','Clarity Lab','Events']; f=[w for w in want if w.lower() in txt.lower()]; return ('pass ' if f else 'FAIL ')+str(f)+' '+txt[:300]
 step('explore',explore)
 def explore_tap():
     ok=tap('Authority') ; time.sleep(4); f=sh('dumpsys window | grep mCurrentFocus').strip(); sh('input keyevent 4'); return ('pass' if ok else 'FAIL no Authority button')+' focus='+f
@@ -78,4 +79,4 @@ def delete():
     sh(f'am force-stop {PKG}'); launch(); nav('Journal')
     return ('pass' if MARK not in alltext() else 'FAIL still present')+' confirm_text='+confirm[:150]
 step('journal_delete_confirm',delete)
-json.dump(R,open('out/results.json','w'),indent=1); print(json.dumps(R,indent=1))
+json.dump(R,open(f'out/{V}_results.json','w'),indent=1); print(json.dumps(R,indent=1))

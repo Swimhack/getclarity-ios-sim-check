@@ -1,5 +1,8 @@
 name: ios-sim
-on: [workflow_dispatch, push]
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/ios-sim.yml','scripts/**','native/**']
 jobs:
   sim:
     runs-on: macos-latest
@@ -36,34 +39,41 @@ jobs:
         with: { name: ios-sim-results, path: out }
   native:
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    strategy: { fail-fast: false, matrix: { variant: [orig, fixed] } }
+    env: { VARIANT: "${{ matrix.variant }}" }
     steps:
       - uses: actions/checkout@v4
       - name: Build Capacitor iOS app
         working-directory: native
         run: |
           mkdir -p ../out
+          if [ "$VARIANT" = fixed ]; then python3 ../scripts/fix_root.py www; fi
+          python3 -c "import json;p='capacitor.config.json';c=json.load(open(p));c.setdefault('ios',{})['webContentsDebuggingEnabled']=True;json.dump(c,open(p,'w'))"
           npm ci
           npx cap sync ios 2>&1 | tee ../out/cap_sync.log
           cd ios/App
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > ../../../out/xcodebuild.log 2>&1 || (tail -80 ../../../out/xcodebuild.log; exit 1)
-          tail -5 ../../../out/xcodebuild.log
-      - name: Boot, install, launch
+          tail -3 ../../../out/xcodebuild.log
+      - name: Boot, install, launch, log
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys,re;d=json.load(sys.stdin)['devices'];c=[(k,x) for k,v in d.items() if 'iOS' in k for x in v if re.match(r'iPhone \d+( Pro)?$',x['name'])];c.sort(key=lambda t:(tuple(int(n) for n in re.findall(r'\d+',t[0])),t[1]['name']));k,x=c[-1];print(x['udid']);open('out/device.txt','w').write(k+' '+x['name']+'\n')")
           cat out/device.txt; echo "UDID=$UDID" >> $GITHUB_ENV
           xcrun simctl boot $UDID; xcrun simctl bootstatus $UDID -b
+          (xcrun simctl spawn $UDID log stream --style compact --level debug --predicate 'process == "App" OR process CONTAINS "WebContent" OR subsystem CONTAINS "WebKit"' > out/${VARIANT}_simlog.txt 2>&1 &)
           xcrun simctl install $UDID native/ios/App/build/Build/Products/Debug-iphonesimulator/App.app
-          xcrun simctl launch $UDID com.stricklandai.getclarity; sleep 15
-          xcrun simctl io $UDID screenshot out/native_launch.png
+          xcrun simctl launch $UDID com.stricklandai.getclarity; sleep 20
+          xcrun simctl io $UDID screenshot out/${VARIANT}_launch.png
+          grep -E "⚡|Capacitor|console|JS Eval|error|Error|Load failed|index.html" out/${VARIANT}_simlog.txt | grep -v -iE "assertion|runningboard" | head -150 > out/${VARIANT}_simlog_filtered.txt || true
       - name: Appium interaction (native webview)
         continue-on-error: true
-        env: { NATIVE: "1", BASE: "capacitor://localhost" }
+        timeout-minutes: 20
         run: |
           npm i -g appium >/dev/null 2>&1 && appium driver install xcuitest > out/appium_install.log 2>&1
           pip3 install --break-system-packages Appium-Python-Client > /dev/null 2>&1 || pip3 install Appium-Python-Client >/dev/null
-          (appium --log out/appium.log &) ; sleep 10
-          python3 scripts/interact.py 2>&1 | tee out/interact.log
+          (appium --log out/${VARIANT}_appium.log &) ; sleep 10
+          python3 scripts/native_ios.py 2>&1 | tee out/${VARIANT}_interact.log
+          grep -E "⚡|Capacitor|console|Error" out/${VARIANT}_simlog.txt | grep -v -iE "assertion|runningboard" | tail -200 > out/${VARIANT}_simlog_tail.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: ios-native-results, path: out }
+        with: { name: "ios-native-${{ matrix.variant }}", path: out }

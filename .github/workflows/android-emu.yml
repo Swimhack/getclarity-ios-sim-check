@@ -1,8 +1,13 @@
 name: android-emu
-on: [workflow_dispatch, push]
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/android-emu.yml','scripts/**']
 jobs:
   android:
     runs-on: ubuntu-latest
+    strategy: { fail-fast: false, matrix: { variant: [orig, fixed] } }
+    env: { VARIANT: "${{ matrix.variant }}" }
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -11,6 +16,14 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - run: mkdir -p out && curl -fsSL -o app.apk https://wayneadamgreer-com.stricklandai.com/app/get-clarity.apk && ls -l app.apk
+      - name: Patch APK root index (fixed variant)
+        if: matrix.variant == 'fixed'
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          mkdir p && cd p && unzip -q ../app.apk assets/public/app/index.html assets/public/index.html && python3 ../scripts/fix_root.py assets/public
+          zip -q ../app.apk assets/public/index.html && cd .. && zip -q -d app.apk 'META-INF/*.SF' 'META-INF/*.RSA' 'META-INF/*.MF' || true
+          keytool -genkeypair -keystore dbg.jks -storepass android -keypass android -alias d -keyalg RSA -dname CN=d -validity 30 >/dev/null 2>&1
+          $BT/zipalign -f 4 app.apk a.apk && $BT/apksigner sign --ks dbg.jks --ks-pass pass:android --out app.apk a.apk && echo signed
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -18,7 +31,7 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: python3 scripts/android_check.py || true
+          script: (adb logcat -v time > out/${{ matrix.variant }}_logcat.txt &) ; python3 scripts/android_check.py || true ; grep -iE 'Capacitor|chromium|Console' out/${{ matrix.variant }}_logcat.txt | tail -300 > out/${{ matrix.variant }}_logcat_filtered.txt || true
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: android-results, path: out }
+        with: { name: "android-${{ matrix.variant }}", path: out }

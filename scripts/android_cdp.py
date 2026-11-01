@@ -13,7 +13,7 @@ def connect():
             sp.run(f'adb forward tcp:9222 localabstract:webview_devtools_remote_{pid}',shell=True)
             try:
                 pages=[p for p in json.load(urllib.request.urlopen('http://127.0.0.1:9222/json')) if p.get('type')=='page']
-                if pages: W['ws']=websocket.create_connection(pages[0]['webSocketDebuggerUrl'],timeout=30); W['id']=0; return True
+                if pages: W['ws']=websocket.create_connection(pages[0]['webSocketDebuggerUrl'],timeout=30,suppress_origin=True); W['id']=0; return True
             except Exception as e: print('cdp wait',e)
         time.sleep(2)
     return False

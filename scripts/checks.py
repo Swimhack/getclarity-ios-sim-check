@@ -1,7 +1,7 @@
 # Shared web-content checks. env: js(code)->value, go(path), relaunch(), shot(name), offline(on)
 import time, json
 SET="""(el,v)=>{const p=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(p,'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));}"""
-CLICK="""(t)=>{const els=[...document.querySelectorAll('[role=button],button,a,[tabindex]')].filter(e=>e.innerText&&e.innerText.trim().replace(/\\s+/g,' ').startsWith(t));if(!els.length)return false;els[els.length-1].scrollIntoView();els[els.length-1].click();return true;}"""
+CLICK="""(t)=>{const els=[...document.querySelectorAll('body *')].filter(e=>e.innerText&&e.innerText.trim().replace(/\\s+/g,' ')===t);if(!els.length)return false;let e=els[els.length-1];e=e.closest('[role=button],button,a')||e;e.scrollIntoView();e.click();return true;}"""
 def run(E, R, mark):
     js=E['js']
     body=lambda: js('document.body?document.body.innerText:""') or ''
@@ -13,7 +13,7 @@ def run(E, R, mark):
         print(name,'=>',R[name],flush=True)
         try: E['shot'](name)
         except Exception as e: print('shot err',e)
-    R['location']=js('location.href')
+    R['location']=js('location.href'); R['doc_head']=(js('document.documentElement.outerHTML') or '')[:220]; R['nav_count']=js('history.length')
     step('render', lambda: 'pass' if 'clarity' in body().lower() else 'FAIL: body=%r'%body()[:150])
     links=lambda: js("[...document.querySelectorAll('a[href]')].map(a=>a.href)") or []
     def create():
@@ -37,7 +37,7 @@ def run(E, R, mark):
         E['offline'](False); return 'pass (network off, relaunch, entry visible)' if ok else 'FAIL offline: '+body()[:150]
     step('offline',offline)
     def exports():
-        go('/app/journal'); out=[]
+        go('/app/journal'); out=[]; R['journal_text']=body()[:900]; R['journal_roles']=js("[...document.querySelectorAll('[aria-label],[role=button]')].map(e=>e.getAttribute('aria-label')||e.innerText.slice(0,20)).slice(0,40)")
         js("window.__dl=[];const o=URL.createObjectURL;URL.createObjectURL=b=>{window.__dl.push(b.size+':'+b.type);return o(b)};window.__pr=0;")
         for t in ['Download as text','Download as JSON','Print']:
             ok=click(t); time.sleep(3); E['shot']('export_'+t.replace(' ','_')); out.append('%s:%s'%(t,'clicked' if ok else 'missing'))

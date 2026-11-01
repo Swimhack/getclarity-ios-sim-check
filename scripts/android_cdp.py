@@ -50,6 +50,17 @@ R['android']=sh('getprop ro.build.version.release').strip()
 launch(); shot('launch')
 if connect():
     R['online_net']=sh('ping -c1 -W2 8.8.8.8 | tail -1').strip()
-    checks.run({'js':js,'go':lambda p: js('location.href=%s'%json.dumps(p)),'relaunch':relaunch,'shot':shot,'offline':offline,'dismiss':dismiss,'sheet':sheet},R,'simcheck%d'%int(time.time()))
+    checks.run({'js':js,'go':lambda p: js('location.href=%s'%json.dumps(p)),'relaunch':relaunch,'shot':shot,'dismiss':dismiss,'sheet':sheet},R,'simcheck%d'%int(time.time()))
 else: R['render']='FAIL: no devtools socket'
+def ui_text():
+    sh('uiautomator dump /sdcard/u.xml >/dev/null'); x=sp.run('adb exec-out cat /sdcard/u.xml',shell=True,capture_output=True,text=True).stdout
+    return ' | '.join(t for t in re.findall(r'(?:text|content-desc)="([^"]+)"',x))
+try:
+    uid=re.search(r'uid:(\d+)',sh(f'cmd package list packages -U {PKG}')).group(1)
+    for t in ['iptables','ip6tables']: sp.run(f'adb shell su 0 {t} -I OUTPUT -m owner --uid-owner {uid} -j REJECT',shell=True)
+    sh(f'am force-stop {PKG}'); launch(); time.sleep(5); shot('offline_ui'); txt=ui_text()
+    R['offline_ui']=('pass (app network blocked via iptables, cold relaunch renders: %s)'%txt[:120]) if 'clarity' in txt.lower() else 'FAIL: '+txt[:200]
+    sh('am start -a android.intent.action.VIEW -d https://wayneadamgreer.com/'); time.sleep(3)
+    for t in ['iptables','ip6tables']: sp.run(f'adb shell su 0 {t} -D OUTPUT -m owner --uid-owner {uid} -j REJECT',shell=True)
+except Exception as e: R['offline_ui']='FAIL: '+repr(e)[:200]
 json.dump(R,open(f'out/{V}_results.json','w'),indent=1); print(json.dumps(R,indent=1))

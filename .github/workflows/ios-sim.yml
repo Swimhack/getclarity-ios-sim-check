@@ -5,6 +5,7 @@ on:
     paths: ['.github/workflows/ios-sim.yml','scripts/**','native/**']
 jobs:
   sim:
+    if: false
     runs-on: macos-latest
     timeout-minutes: 30
     env:
@@ -40,7 +41,7 @@ jobs:
   native:
     runs-on: macos-latest
     timeout-minutes: 35
-    strategy: { fail-fast: false, matrix: { variant: [orig, fixed] } }
+    strategy: { fail-fast: false, matrix: { variant: [candidate] } }
     env: { VARIANT: "${{ matrix.variant }}" }
     steps:
       - uses: actions/checkout@v4

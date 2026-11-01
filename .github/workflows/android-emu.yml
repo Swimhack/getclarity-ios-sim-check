@@ -6,7 +6,7 @@ on:
 jobs:
   android:
     runs-on: ubuntu-latest
-    strategy: { fail-fast: false, matrix: { variant: [orig, fixed] } }
+    strategy: { fail-fast: false, matrix: { variant: [candidate] } }
     env: { VARIANT: "${{ matrix.variant }}" }
     timeout-minutes: 40
     steps:
@@ -15,12 +15,12 @@ jobs:
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
-      - run: mkdir -p out && curl -fsSL -o app.apk https://wayneadamgreer-com.stricklandai.com/app/get-clarity.apk && ls -l app.apk
+      - run: mkdir -p out && curl -fsSL -o app.apk https://github.com/Swimhack/getclarity-ios-sim-check/releases/download/candidate-1.0.2/get-clarity-1.0.2.apk && ls -l app.apk
       - name: Test build - enable WebView debugging (both variants)
         run: |
           mkdir -p q && cd q && unzip -q ../app.apk assets/capacitor.config.json && python3 -c "import json;p='assets/capacitor.config.json';c=json.load(open(p));c.setdefault('android',{})['webContentsDebuggingEnabled']=True;json.dump(c,open(p,'w'))" && zip -q ../app.apk assets/capacitor.config.json
       - name: Patch APK root index (fixed variant)
-        if: matrix.variant == 'fixed'
+        if: false
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           mkdir p && cd p && unzip -q ../app.apk 'assets/public/*' && python3 ../scripts/refresh_www.py assets/public && python3 ../scripts/fix_root.py assets/public

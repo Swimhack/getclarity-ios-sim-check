@@ -40,11 +40,13 @@ def run(E, R, mark):
         go('/app/journal'); out=[]; R['journal_text']=body()[:900]; R['journal_roles']=js("[...document.querySelectorAll('[aria-label],[role=button]')].map(e=>e.getAttribute('aria-label')||e.innerText.slice(0,20)).slice(0,40)")
         js("window.__dl=[];const o=URL.createObjectURL;URL.createObjectURL=b=>{window.__dl.push(b.size+':'+b.type);return o(b)};window.__pr=0;")
         for t in ['Download as text','Download as JSON','Print']:
-            ok=click(t); time.sleep(3); E['shot']('export_'+t.replace(' ','_')); out.append('%s:%s'%(t,'clicked' if ok else 'missing'))
+            js('window.__gcLastShare=null'); ok=click(t); time.sleep(4); E['shot']('export_'+t.replace(' ','_'))
+            sheet=E['sheet']() if E.get('sheet') else '?'
+            out.append('%s:%s share=%s sheet=%s'%(t,'clicked' if ok else 'missing',js('JSON.stringify(window.__gcLastShare)'),sheet))
             if E.get('dismiss'): E['dismiss']()
         out.append('blobs=%s'%js('window.__dl'))
         out.append('msg=%s'%[l for l in body().split('\n') if 'print' in l.lower() or 'download' in l.lower()][:4])
-        return ('pass ' if all('clicked' in x for x in out[:3]) else 'FAIL ')+'; '.join(out)
+        return ('pass ' if all('clicked' in x and 'sheet=True' in x for x in out[:3]) else 'FAIL ')+'; '.join(out)
     step('exports',exports)
     def explore():
         go('/app/explore'); L=links(); b=body()

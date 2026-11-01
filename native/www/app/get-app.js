@@ -18,8 +18,8 @@
       d.innerHTML='<img src="/app/icons/icon-192.png" alt="" width="36" height="36">'+
         '<div class="gc-txt"><strong>Get the app</strong><span>'+(isIOS?'Add Get Clarity to your Home Screen':isAndroid?'Install Get Clarity on Android':'Get Clarity on iPhone & Android')+'</span></div>'+
         '<a class="gc-btn" href="/app/download/">Get it</a><button class="gc-x" aria-label="Dismiss">\u00d7</button>';
-      d.querySelector('.gc-x').onclick=function(){sessionStorage.setItem('gc-getapp-dismissed','1');d.remove();};
-      document.body.appendChild(d);
+      d.querySelector('.gc-x').onclick=function(){sessionStorage.setItem('gc-getapp-dismissed','1');d.remove();document.documentElement.classList.remove('gc-has-getapp');};
+      document.body.appendChild(d);document.documentElement.classList.add('gc-has-getapp');
     }
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
   }catch(e){}

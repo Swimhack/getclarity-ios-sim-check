@@ -37,6 +37,9 @@ def offline(on):
     uid=re.search(r'uid:(\d+)',sh(f'cmd package list packages -U {PKG}')).group(1); a='-I' if on else '-D'
     for t in ['iptables','ip6tables']: sp.run(f'adb shell su 0 {t} {a} OUTPUT -m owner --uid-owner {uid} -j REJECT',shell=True)
     time.sleep(2); R['offline_probe_'+('on' if on else 'off')]=js("fetch('https://wayneadamgreer.com/',{mode:'no-cors',cache:'no-store'}).then(()=> 'network reachable').catch(e=>'network blocked: '+e)")
+def sheet():
+    f=sh('dumpsys window | grep mCurrentFocus'); R.setdefault('sheet_focus',[]).append(f.strip()[-90:])
+    return ('Chooser' in f or 'intentresolver' in f or 'Resolver' in f)
 def dismiss():
     f=sh('dumpsys window | grep mCurrentFocus')
     if PKG+'/' not in f or 'Print' in f: sh('input keyevent 4'); time.sleep(2)
@@ -47,6 +50,6 @@ R['android']=sh('getprop ro.build.version.release').strip()
 launch(); shot('launch')
 if connect():
     R['online_net']=sh('ping -c1 -W2 8.8.8.8 | tail -1').strip()
-    checks.run({'js':js,'go':lambda p: js('location.href=%s'%json.dumps(p)),'relaunch':relaunch,'shot':shot,'offline':offline,'dismiss':dismiss},R,'simcheck%d'%int(time.time()))
+    checks.run({'js':js,'go':lambda p: js('location.href=%s'%json.dumps(p)),'relaunch':relaunch,'shot':shot,'offline':offline,'dismiss':dismiss,'sheet':sheet},R,'simcheck%d'%int(time.time()))
 else: R['render']='FAIL: no devtools socket'
 json.dump(R,open(f'out/{V}_results.json','w'),indent=1); print(json.dumps(R,indent=1))

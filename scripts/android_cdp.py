@@ -7,6 +7,9 @@ def shot(name):
 def launch(): sh(f'monkey -p {PKG} -c android.intent.category.LAUNCHER 1'); time.sleep(10)
 W={}
 def connect():
+    try: W['ws'].close()
+    except Exception: pass
+    time.sleep(3)
     for i in range(20):
         pid=sh(f'pidof {PKG}').strip()
         if pid:
@@ -17,7 +20,12 @@ def connect():
             except Exception as e: print('cdp wait',e)
         time.sleep(2)
     return False
-def js(code):
+def js(code,_r=3):
+    try: return _js(code)
+    except Exception as e:
+        if _r<=0: raise
+        print('cdp reconnect',e); time.sleep(4); connect(); return js(code,_r-1)
+def _js(code):
     W['id']+=1; W['ws'].send(json.dumps({'id':W['id'],'method':'Runtime.evaluate','params':{'expression':code,'returnByValue':True,'awaitPromise':True,'userGesture':True}}))
     while True:
         m=json.loads(W['ws'].recv())

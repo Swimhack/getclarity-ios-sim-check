@@ -20,6 +20,20 @@ def tap(label,exact=False,last=False):
     if not hits: return False
     a=hits[-1] if last else hits[0]
     x1,y1,x2,y2=map(int,re.findall(r'\d+',a['bounds'])); sh(f'input tap {(x1+x2)//2} {(y1+y2)//2}'); time.sleep(2); return True
+def edits():
+    out=[]
+    for t,d,a in nodes(dump()):
+        if 'EditText' in a.get('class',''): out.append(a)
+    return out
+def tapnode(a):
+    x1,y1,x2,y2=map(int,re.findall(r'\d+',a['bounds'])); sh(f'input tap {(x1+x2)//2} {(y1+y2)//2}'); time.sleep(1)
+W,H=map(int,re.findall(r'(\d+)x(\d+)',sh('wm size'))[-1])
+def swipe_up(): sh(f'input swipe {W//2} {int(H*.8)} {W//2} {int(H*.3)} 300'); time.sleep(1)
+def find_scroll(label,tries=5):
+    for i in range(tries):
+        if tap(label): return True
+        swipe_up()
+    return False
 def launch(): sh(f'monkey -p {PKG} -c android.intent.category.LAUNCHER 1'); time.sleep(10)
 def step(name,fn):
     try: R[name]=fn() or 'pass'
@@ -37,11 +51,14 @@ def nav(tab):
 def create():
     nav('Reflect'); time.sleep(2)
     tap('Direction')  # focus choice if present
-    if not tap('Your reflection') and not tap('Let your thoughts'): return 'FAIL: no reflection field: '+alltext()[:300]
-    sh(f'input text {MARK}'); sh('input keyevent 111'); time.sleep(1)
-    if tap('Your next step') or tap('Today, I will'): sh('input text step1'); sh('input keyevent 111')
-    for t in ['Save to my journal','Save to journal','Save my reflection','Save']:
-        if tap(t): break
+    e=edits()
+    if not e: swipe_up(); e=edits()
+    if not e: return 'FAIL: no EditText: '+alltext()[:300]
+    tapnode(e[0]); sh(f'input text {MARK}'); sh('input keyevent 111'); time.sleep(1)
+    e=edits()
+    if len(e)>1: tapnode(e[1]); sh('input text step1'); sh('input keyevent 111'); time.sleep(1)
+    for t in ['Save my reflection','Save to my journal','Save to journal']:
+        if find_scroll(t,3): break
     else: return 'FAIL: no save: '+alltext()[:300]
     time.sleep(2); return 'pass'
 step('journal_create_save',create)
@@ -61,7 +78,7 @@ sh('svc wifi enable'); sh('svc data enable')
 def exports():
     nav('Profile'); time.sleep(1); out=[]
     for t in ['Download as text','Download as JSON','Print']:
-        sh('input swipe 500 1500 500 500'); ok=tap(t); out.append(f'{t}:{"tapped" if ok else "missing"}'); shot('export_'+t.replace(' ','_')); sh('input keyevent 4') if ok else None; time.sleep(2)
+        ok=find_scroll(t); out.append(f'{t}:{"tapped" if ok else "missing"}'); shot('export_'+t.replace(' ','_')); sh('input keyevent 4') if ok else None; time.sleep(2)
         if PKG not in sh('dumpsys window | grep mCurrentFocus'): launch(); nav('Profile')
     return ('pass ' if all('tapped' in o for o in out) else 'FAIL ')+', '.join(out)
 step('exports',exports)
@@ -73,7 +90,7 @@ def explore_tap():
 step('explore_link_opens',explore_tap)
 def delete():
     launch(); nav('Journal')
-    if not tap('Delete entry'): return 'FAIL: no delete control: '+alltext()[:200]
+    if not find_scroll('Delete entry',3): return 'FAIL: no delete control: '+alltext()[:200]
     shot('delete_confirm'); confirm=alltext()
     tap('Delete',exact=True,last=True); time.sleep(2)
     sh(f'am force-stop {PKG}'); launch(); nav('Journal')

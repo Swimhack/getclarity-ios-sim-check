@@ -34,7 +34,7 @@ def relaunch():
     sh(f'am force-stop {PKG}'); launch(); connect()
 def offline(on):
     # app-only network cut (svc wifi/data disable knocks adb offline on this emulator)
-    uid=re.search(r'userId=(\d+)',sh(f'dumpsys package {PKG}')).group(1); a='-I' if on else '-D'
+    uid=re.search(r'uid:(\d+)',sh(f'cmd package list packages -U {PKG}')).group(1); a='-I' if on else '-D'
     for t in ['iptables','ip6tables']: sp.run(f'adb shell su 0 {t} {a} OUTPUT -m owner --uid-owner {uid} -j REJECT',shell=True)
     time.sleep(2); R['offline_probe_'+('on' if on else 'off')]=js("fetch('https://wayneadamgreer.com/',{mode:'no-cors',cache:'no-store'}).then(()=> 'network reachable').catch(e=>'network blocked: '+e)")
 def dismiss():

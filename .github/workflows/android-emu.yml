@@ -23,8 +23,8 @@ jobs:
         if: matrix.variant == 'fixed'
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
-          mkdir p && cd p && unzip -q ../app.apk assets/public/app/index.html assets/public/index.html && python3 ../scripts/fix_root.py assets/public
-          zip -q ../app.apk assets/public/index.html
+          mkdir p && cd p && unzip -q ../app.apk 'assets/public/*' && python3 ../scripts/refresh_www.py assets/public && python3 ../scripts/fix_root.py assets/public
+          zip -qr ../app.apk assets/public
       - name: Re-sign
         run: |
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)

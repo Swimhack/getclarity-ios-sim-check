@@ -48,7 +48,7 @@ jobs:
         working-directory: native
         run: |
           mkdir -p ../out
-          if [ "$VARIANT" = fixed ]; then python3 ../scripts/fix_root.py www; fi
+          if [ "$VARIANT" = fixed ]; then python3 ../scripts/refresh_www.py www && python3 ../scripts/fix_root.py www; fi
           python3 -c "import json;p='capacitor.config.json';c=json.load(open(p));c.setdefault('ios',{})['webContentsDebuggingEnabled']=True;json.dump(c,open(p,'w'))"
           npm ci
           npx cap sync ios 2>&1 | tee ../out/cap_sync.log

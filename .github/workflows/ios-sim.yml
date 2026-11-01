@@ -1,0 +1,36 @@
+name: ios-sim
+on: [workflow_dispatch, push]
+jobs:
+  sim:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      BASE: https://wayneadamgreer-com.stricklandai.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot iPhone
+        run: |
+          mkdir -p out
+          xcrun simctl list devices available | tee out/devices.txt
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys,re;d=json.load(sys.stdin)['devices'];c=[(k,x) for k,v in d.items() if 'iOS' in k for x in v if re.match(r'iPhone \d+( Pro)?$',x['name'])];c.sort(key=lambda t:(tuple(int(n) for n in re.findall(r'\d+',t[0])),t[1]['name']));k,x=c[-1];print(x['udid']);open('out/device.txt','w').write(k+' '+x['name']+'\n')")
+          cat out/device.txt
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot $UDID
+          xcrun simctl bootstatus $UDID -b
+      - name: Screenshots
+        run: |
+          for p in app/ app/journal app/profile app/explore app/reflect app/download/; do
+            n=$(echo $p | tr '/' '_')
+            xcrun simctl openurl $UDID "$BASE/$p"; sleep 12
+            xcrun simctl io $UDID screenshot out/shot_$n.png
+          done
+      - name: Appium interaction
+        continue-on-error: true
+        run: |
+          npm i -g appium >/dev/null 2>&1 && appium driver install xcuitest > out/appium_install.log 2>&1
+          pip3 install --break-system-packages Appium-Python-Client > /dev/null 2>&1 || pip3 install Appium-Python-Client >/dev/null
+          (appium --log out/appium.log &) ; sleep 10
+          python3 scripts/interact.py 2>&1 | tee out/interact.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: ios-sim-results, path: out }
